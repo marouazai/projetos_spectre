@@ -1,0 +1,82 @@
+/**
+ * audio_capture.h
+ * Capture audio via le jack 3.5mm de la STM32F746G-DISCO
+ * Utilise le BSP audio (WM8994 + SAI2 + DMA)
+ */
+
+#ifndef INC_AUDIO_CAPTURE_H_
+#define INC_AUDIO_CAPTURE_H_
+#define AUDIO_INPUT_DEVICE      INPUT_DEVICE_DIGITAL_MICROPHONE_2
+#define AUDIO_INPUT_DEVICE      INPUT_DEVICE_DIGITAL_MIC
+
+#include "stm32f7xx_hal.h"
+#include "stm32746g_discovery_audio.h"
+
+/* ====== PARAMETRES AUDIO ====== */
+
+/*
+ * Frequence d'echantillonnage : 44100 Hz = qualite CD
+ * Le codec WM8994 echantillonne le son 44100 fois par seconde
+ * Chaque echantillon est un nombre entre -32768 et +32767
+ */
+#define AUDIO_SAMPLE_RATE       44100
+
+/*
+ * Taille de la FFT : 1024 points
+ * On analyse des blocs de 1024 echantillons a la fois
+ * Resolution frequentielle = 44100 / 1024 = 43 Hz par bin
+ */
+#define FFT_SIZE                1024
+
+/*
+ * Taille du buffer DMA (en nombre de int16_t)
+ *
+ * Le son arrive en STEREO : [Gauche, Droite, Gauche, Droite, ...]
+ * Donc pour 1024 echantillons mono, il faut 1024 x 2 = 2048 valeurs
+ *
+ * On DOUBLE pour le double buffering :
+ *   Pendant que le DMA remplit la moitie 2,
+ *   le CPU traite la moitie 1 (et inversement)
+ *
+ * Total = 2048 x 2 = 4096
+ */
+#define AUDIO_BUFFER_SIZE       (FFT_SIZE * 2 * 2)
+
+/*
+ * Entree audio = jack 3.5mm
+ * INPUT_DEVICE_INPUT_LINE1 = l'entree ligne du WM8994
+ * C'est le jack 3.5mm sur la carte DISCO
+ */
+#define AUDIO_INPUT_DEVICE      INPUT_DEVICE_INPUT_LINE_1
+
+/*
+ * Volume d'entree (0 a 100)
+ * 70 = bon point de depart
+ */
+#define AUDIO_INPUT_VOLUME      70
+
+/* ====== VARIABLES PARTAGEES ====== */
+
+/*
+ * Buffer ou le DMA ecrit les echantillons audio en continu
+ * "extern" = declare ici, defini dans audio_capture.c
+ */
+extern int16_t audio_rec_buffer[AUDIO_BUFFER_SIZE];
+
+/*
+ * Flags mis a 1 par les interruptions DMA
+ * "volatile" = le compilateur ne doit pas optimiser ces variables
+ *              car elles changent dans les interruptions
+ */
+extern volatile uint8_t audio_rec_half_complete;
+extern volatile uint8_t audio_rec_full_complete;
+
+/* ====== FONCTIONS ====== */
+
+/* Initialise le codec WM8994 + SAI2 + DMA. Retourne 0 si OK */
+uint8_t AudioCapture_Init(void);
+
+/* Demarre l'enregistrement DMA. Retourne 0 si OK */
+uint8_t AudioCapture_Start(void);
+
+#endif /* INC_AUDIO_CAPTURE_H_ */

@@ -1,0 +1,301 @@
+/**
+ * spectrum.c
+ * FFT + affichage du spectre audio sur LCD
+ *
+ * Pipeline pour chaque bloc de 1024 echantillons :
+ *
+ *   Buffer stereo [L,R,L,R,...]
+ *     → extraction canal gauche [L,L,L,...]
+ *       → fenetre de Hanning (adoucit les bords)
+ *         → FFT 1024 points (CMSIS-DSP)
+ *           → magnitudes (512 valeurs)
+ *             → 60 barres sur le LCD
+ */
+
+#include "spectrum.h"
+#include "stm32746g_discovery_lcd.h"
+#include "arm_math.h"
+#include <math.h>
+#include <string.h>
+
+/* ====== VARIABLES FFT ====== */
+
+/*
+ * Structure de configuration FFT de CMSIS-DSP
+ * Contient les tables de cosinus/sinus precalculees
+ * Initialisee une seule fois dans Spectrum_Init()
+ */
+static arm_rfft_fast_instance_f32 fft_instance;
+
+/*
+ * fft_input : signal apres extraction mono + fenetre
+ *             1024 valeurs float
+ *
+ * fft_output : resultat brut de la FFT
+ *              format [Re0, Im0, Re1, Im1, ...]
+ *              1024 valeurs float
+ *
+ * fft_magnitude : module de chaque bin = sqrt(Re² + Im²)
+ *                 512 valeurs float
+ */
+static float32_t fft_input[FFT_SIZE];
+static float32_t fft_output[FFT_SIZE];
+static float32_t fft_magnitude[FFT_SIZE / 2];
+
+/*
+ * Hauteurs precedentes pour l'effet de descente progressive
+ * Les barres montent vite mais descendent lentement
+ * → plus agreable a regarder
+ */
+static float32_t bar_heights_prev[NB_BARS];
+
+/*
+ * Fenetre de Hanning precalculee
+ * Forme de "cloche" : vaut 0 aux bords, 1 au centre
+ * Multipliee par le signal avant la FFT pour eviter
+ * les artefacts dus a la coupure brutale du signal
+ */
+static float32_t hanning_window[FFT_SIZE];
+
+/* ====== FONCTION COULEUR ====== */
+
+/*
+ * Calcule la couleur d'une barre selon sa position
+ * Barre 0  (basses)  = vert
+ * Barre 30 (mediums) = jaune
+ * Barre 59 (aigus)   = rouge
+ */
+static uint32_t bar_color(uint16_t bar_index)
+{
+    float ratio = (float)bar_index / (float)(NB_BARS - 1);
+
+    /* Rouge augmente de 0 a 255 */
+    uint8_t r = (uint8_t)(255.0f * ratio);
+    /* Vert diminue de 255 a 0 */
+    uint8_t g = (uint8_t)(255.0f * (1.0f - ratio));
+
+    /*
+     * Format ARGB8888 pour le LCD
+     * 0xFF = Alpha (opaque)
+     * r,g = couleurs calculees
+     * 0 = pas de bleu
+     */
+    return 0xFF000000 | ((uint32_t)r << 16) | ((uint32_t)g << 8);
+}
+
+/* ====== INITIALISATION ====== */
+
+void Spectrum_Init(void)
+{
+    /* --- Initialise le LCD --- */
+
+    /*
+     * BSP_LCD_Init() configure le controleur d'ecran (LTDC)
+     * et reserve la memoire video en SDRAM
+     */
+    BSP_LCD_Init();
+
+    /*
+     * Configure la couche graphique 0
+     * 0xC0000000 = adresse de la SDRAM
+     * C'est la memoire ou on "dessine" les pixels
+     * Le LCD lit cette memoire et affiche l'image
+     */
+    BSP_LCD_LayerDefaultInit(0, 0xC0000000);
+    BSP_LCD_SelectLayer(0);
+    BSP_LCD_DisplayOn();
+
+    /* Fond noir */
+    BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
+    BSP_LCD_Clear(LCD_COLOR_BLACK);
+
+    /* Titre en haut */
+    BSP_LCD_SetTextColor(LCD_COLOR_CYAN);
+    BSP_LCD_SetFont(&Font16);
+    BSP_LCD_DisplayStringAt(0, 5,
+        (uint8_t *)"Analyseur Spectre Audio", CENTER_MODE);
+
+    /* Labels de frequences en bas */
+    BSP_LCD_SetTextColor(LCD_COLOR_LIGHTGRAY);
+    BSP_LCD_SetFont(&Font8);
+    BSP_LCD_DisplayStringAt(SPECTRUM_X0,       SPECTRUM_Y_BOTTOM + 5,
+                            (uint8_t *)"0",    LEFT_MODE);
+    BSP_LCD_DisplayStringAt(SPECTRUM_X0 + 100, SPECTRUM_Y_BOTTOM + 5,
+                            (uint8_t *)"2kHz", LEFT_MODE);
+    BSP_LCD_DisplayStringAt(SPECTRUM_X0 + 200, SPECTRUM_Y_BOTTOM + 5,
+                            (uint8_t *)"5kHz", LEFT_MODE);
+    BSP_LCD_DisplayStringAt(SPECTRUM_X0 + 340, SPECTRUM_Y_BOTTOM + 5,
+                            (uint8_t *)"10kHz", LEFT_MODE);
+
+    /* --- Initialise la FFT --- */
+
+    /*
+     * Prepare les tables internes pour la FFT 1024 points
+     * "rfft" = Real FFT (signal reel, pas complexe)
+     * "fast" = version optimisee pour Cortex-M7
+     * "f32"  = float 32 bits
+     */
+    arm_rfft_fast_init_f32(&fft_instance, FFT_SIZE);
+
+    /* --- Precalcule la fenetre de Hanning --- */
+
+    for (uint16_t i = 0; i < FFT_SIZE; i++)
+    {
+        /*
+         * Formule : w[n] = 0.5 * (1 - cos(2 * pi * n / N))
+         *
+         * Exemple pour 8 points :
+         *   w = [0.0, 0.15, 0.5, 0.85, 1.0, 0.85, 0.5, 0.15]
+         *        ↑                      ↑                   ↑
+         *      bord=0              centre=1              bord=0
+         */
+        hanning_window[i] = 0.5f * (1.0f - cosf(2.0f * (float)M_PI
+                            * (float)i / (float)FFT_SIZE));
+    }
+
+    /* Hauteurs precedentes a zero */
+    memset(bar_heights_prev, 0, sizeof(bar_heights_prev));
+}
+
+/* ====== TRAITEMENT D'UN BLOC AUDIO ====== */
+
+void Spectrum_Process(int16_t *audio_data, uint16_t num_samples)
+{
+    /* --- Etape 1 : Extraction mono + normalisation + fenetre --- */
+
+    /*
+     * Le buffer contient du stereo : [L0, R0, L1, R1, ...]
+     * On prend seulement le canal gauche (indices pairs)
+     *
+     * Normalisation : int16_t va de -32768 a +32767
+     * On divise par 32768 pour obtenir [-1.0, +1.0]
+     *
+     * Fenetre : on multiplie par hanning_window
+     * pour adoucir les bords du bloc
+     */
+    for (uint16_t i = 0; i < FFT_SIZE; i++)
+    {
+        float32_t sample = (float32_t)audio_data[i * 2] / 32768.0f;
+        fft_input[i] = sample * hanning_window[i];
+    }
+
+    /* --- Etape 2 : FFT --- */
+
+    /*
+     * Calcule la FFT reelle 1024 points
+     *
+     * Entree : fft_input[0..1023] = signal temporel
+     * Sortie : fft_output[0..1023] = spectre complexe
+     *
+     * Format sortie :
+     *   [0] = DC (frequence 0 Hz)
+     *   [1] = Nyquist (frequence max = 22050 Hz)
+     *   [2],[3] = Re[1], Im[1] → bin 1 = 43 Hz
+     *   [4],[5] = Re[2], Im[2] → bin 2 = 86 Hz
+     *   ...
+     *
+     * Le dernier parametre 0 = FFT directe (pas inverse)
+     */
+    arm_rfft_fast_f32(&fft_instance, fft_input, fft_output, 0);
+
+    /* --- Etape 3 : Magnitudes --- */
+
+    /*
+     * Calcule |X[k]| = sqrt(Re[k]² + Im[k]²) pour chaque bin
+     * On saute les 2 premieres valeurs (DC et Nyquist)
+     * Resultat : 511 magnitudes dans fft_magnitude[]
+     */
+    arm_cmplx_mag_f32(&fft_output[2], fft_magnitude, FFT_SIZE / 2 - 1);
+
+    /* --- Etape 4 : Affichage des barres --- */
+
+    /* Efface la zone du spectre (sans toucher au titre ni aux labels) */
+    BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+    BSP_LCD_FillRect(SPECTRUM_X0 - 1,
+                     SPECTRUM_Y_BOTTOM - SPECTRUM_MAX_H - 1,
+                     NB_BARS * (BAR_W + BAR_GAP) + 2,
+                     SPECTRUM_MAX_H + 2);
+
+    for (uint16_t b = 0; b < NB_BARS; b++)
+    {
+        /*
+         * Mapping logarithmique : bins FFT → barres
+         *
+         * Les basses frequences ont plus de detail (barres larges)
+         * Les aigus sont compresses (barres etroites)
+         * L'exposant 1.8 donne un bon rendu visuel
+         *
+         * Exemple :
+         *   Barre 0  → bins 0-1    (0-43 Hz)
+         *   Barre 10 → bins 5-9    (215-387 Hz)
+         *   Barre 30 → bins 40-60  (1.7-2.6 kHz)
+         *   Barre 59 → bins 430-511 (18.5-22 kHz)
+         */
+        uint16_t max_bin = (FFT_SIZE / 2) - 1;
+
+        float ratio_start = powf((float)b / (float)NB_BARS, 1.8f);
+        float ratio_end   = powf((float)(b + 1) / (float)NB_BARS, 1.8f);
+
+        uint16_t bin_start = (uint16_t)(ratio_start * max_bin);
+        uint16_t bin_end   = (uint16_t)(ratio_end * max_bin);
+        if (bin_end <= bin_start) bin_end = bin_start + 1;
+
+        /* Moyenne des magnitudes dans cette plage */
+        float32_t sum = 0.0f;
+        for (uint16_t k = bin_start; k < bin_end; k++)
+        {
+            sum += fft_magnitude[k];
+        }
+        float32_t avg = sum / (float32_t)(bin_end - bin_start);
+
+        /*
+         * Conversion en decibels (echelle logarithmique)
+         * L'oreille humaine percoit le son en dB, pas lineaire
+         * 20*log10(x) = formule standard des dB
+         */
+        float32_t magnitude_db;
+        if (avg > 0.0001f)
+        {
+            magnitude_db = 20.0f * log10f(avg);
+        }
+        else
+        {
+            magnitude_db = -60.0f;  /* silence */
+        }
+
+        /* Convertit les dB en hauteur de pixels */
+        float32_t height_f = (magnitude_db - (-60.0f))
+                           / (0.0f - (-60.0f))
+                           * (float)SPECTRUM_MAX_H
+                           * 3.0f;
+
+        if (height_f < 0.0f) height_f = 0.0f;
+        if (height_f > (float)SPECTRUM_MAX_H) height_f = (float)SPECTRUM_MAX_H;
+
+        /*
+         * Lissage temporel :
+         *   Montee rapide (0.7) → suit le signal
+         *   Descente lente (0.85) → effet "peak hold"
+         */
+        if (height_f > bar_heights_prev[b])
+        {
+            bar_heights_prev[b] = 0.3f * bar_heights_prev[b]
+                                + 0.7f * height_f;
+        }
+        else
+        {
+            bar_heights_prev[b] = 0.85f * bar_heights_prev[b]
+                                + 0.15f * height_f;
+        }
+
+        uint16_t bar_h = (uint16_t)bar_heights_prev[b];
+        if (bar_h < 1) bar_h = 1;
+
+        /* Position et dessin de la barre */
+        uint16_t x = SPECTRUM_X0 + b * (BAR_W + BAR_GAP);
+        uint16_t y = SPECTRUM_Y_BOTTOM - bar_h;
+
+        BSP_LCD_SetTextColor(bar_color(b));
+        BSP_LCD_FillRect(x, y, BAR_W, bar_h);
+    }
+}

@@ -1,0 +1,161 @@
+/**
+ * spectrum.c
+ * Double affichage : signal temporel + spectre FFT
+ *
+ * Moitie haute : forme d'onde du signal audio (oscilloscope)
+ * Moitie basse : spectre frequentiel (barres FFT)
+ */
+
+#include "spectrum.h"
+#include "stm32746g_discovery_lcd.h"
+#include "arm_math.h"
+#include <math.h>
+#include <string.h>
+
+/* ====== VARIABLES FFT ====== */
+static arm_rfft_fast_instance_f32 fft_instance;
+static float32_t fft_input[FFT_SIZE];
+static float32_t fft_output[FFT_SIZE];
+static float32_t fft_magnitude[FFT_SIZE / 2];
+static float32_t bar_heights_prev[NB_BARS];
+static float32_t hanning_window[FFT_SIZE];
+
+/* ====== COULEUR DES BARRES ====== */
+
+/*
+ * Degrade vert (basses) → jaune (mediums) → rouge (aigus)
+ */
+static uint32_t bar_color(uint16_t bar_index)
+{
+    float ratio = (float)bar_index / (float)(NB_BARS - 1);
+    uint8_t r = (uint8_t)(255.0f * ratio);
+    uint8_t g = (uint8_t)(255.0f * (1.0f - ratio));
+    return 0xFF000000 | ((uint32_t)r << 16) | ((uint32_t)g << 8);
+}
+
+/* ====== INITIALISATION ====== */
+
+void Spectrum_Init(void)
+{
+    /* --- LCD --- */
+    BSP_LCD_Init();
+    BSP_LCD_LayerDefaultInit(0, 0xC0000000);
+    BSP_LCD_SelectLayer(0);
+    BSP_LCD_DisplayOn();
+    BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
+    BSP_LCD_Clear(LCD_COLOR_BLACK);
+
+    /* Titre */
+    BSP_LCD_SetTextColor(LCD_COLOR_CYAN);
+    BSP_LCD_SetFont(&Font16);
+    BSP_LCD_DisplayStringAt(0, 3,
+        (uint8_t *)"Analyseur Spectre Audio", CENTER_MODE);
+
+    /* Ligne de separation entre les 2 zones */
+    BSP_LCD_SetTextColor(LCD_COLOR_DARKGRAY);
+    BSP_LCD_DrawHLine(0, WAVE_Y_BOTTOM + 5, LCD_W);
+
+    /* Label zone haute */
+    BSP_LCD_SetTextColor(LCD_COLOR_LIGHTGRAY);
+    BSP_LCD_SetFont(&Font8);
+    BSP_LCD_DisplayStringAt(WAVE_X0, WAVE_Y_TOP - 10,
+                            (uint8_t *)"Signal temporel", LEFT_MODE);
+
+    /* Label zone basse */
+    BSP_LCD_DisplayStringAt(SPECTRUM_X0, WAVE_Y_BOTTOM + 10,
+                            (uint8_t *)"Spectre FFT", LEFT_MODE);
+
+    /* Labels de frequences en bas */
+    BSP_LCD_DisplayStringAt(SPECTRUM_X0,       SPECTRUM_Y_BOTTOM + 5,
+                            (uint8_t *)"0",    LEFT_MODE);
+    BSP_LCD_DisplayStringAt(SPECTRUM_X0 + 100, SPECTRUM_Y_BOTTOM + 5,
+                            (uint8_t *)"2kHz", LEFT_MODE);
+    BSP_LCD_DisplayStringAt(SPECTRUM_X0 + 200, SPECTRUM_Y_BOTTOM + 5,
+                            (uint8_t *)"5kHz", LEFT_MODE);
+    BSP_LCD_DisplayStringAt(SPECTRUM_X0 + 340, SPECTRUM_Y_BOTTOM + 5,
+                            (uint8_t *)"10kHz", LEFT_MODE);
+
+    /* --- FFT --- */
+    arm_rfft_fast_init_f32(&fft_instance, FFT_SIZE);
+
+    /* Fenetre de Hanning */
+    for (uint16_t i = 0; i < FFT_SIZE; i++)
+    {
+        hanning_window[i] = 0.5f * (1.0f - cosf(2.0f * (float)M_PI
+                            * (float)i / (float)FFT_SIZE));
+    }
+
+    memset(bar_heights_prev, 0, sizeof(bar_heights_prev));
+}
+
+/* ====== DESSIN DU SIGNAL TEMPOREL ====== */
+
+/*
+ * Affiche la forme d'onde brute (oscilloscope)
+ *
+ * On prend WAVE_WIDTH echantillons et on les dessine
+ * comme une courbe point par point.
+ *
+ * Le signal int16_t (-32768 a +32767) est converti
+ * en position Y sur l'ecran.
+ */
+static void draw_waveform(int16_t *audio_data)
+{
+    /* Efface la zone du signal temporel */
+    BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+    BSP_LCD_FillRect(WAVE_X0, WAVE_Y_TOP,
+                     WAVE_WIDTH, WAVE_Y_BOTTOM - WAVE_Y_TOP);
+
+    /* Ligne centrale (axe zero) en gris fonce */
+    BSP_LCD_SetTextColor(LCD_COLOR_DARKGRAY);
+    BSP_LCD_DrawHLine(WAVE_X0, WAVE_Y_CENTER, WAVE_WIDTH);
+
+    /* Dessine la forme d'onde en vert */
+    BSP_LCD_SetTextColor(LCD_COLOR_GREEN);
+
+    /*
+     * On parcourt WAVE_WIDTH pixels (460)
+     * Pour chaque pixel X, on prend un echantillon
+     * du buffer stereo (canal gauche = indices pairs)
+     *
+     * step = combien d'echantillons on saute par pixel
+     * Avec 1024 echantillons et 460 pixels : step ≈ 2
+     */
+    uint16_t step = FFT_SIZE / WAVE_WIDTH;
+    if (step < 1) step = 1;
+
+    int16_t prev_y = WAVE_Y_CENTER;
+
+    for (uint16_t x = 0; x < WAVE_WIDTH; x++)
+    {
+        /* Prend le canal gauche (indices pairs dans le stereo) */
+        uint16_t sample_idx = x * step;
+        if (sample_idx >= FFT_SIZE) sample_idx = FFT_SIZE - 1;
+
+        int16_t sample = audio_data[sample_idx * 2];
+
+        /*
+         * Convertit l'echantillon en position Y
+         * sample = -32768..+32767
+         * On mappe sur WAVE_HEIGHT pixels au-dessus et
+         * en-dessous du centre
+         */
+        int16_t y = WAVE_Y_CENTER
+                  - (int16_t)((float)sample / 32768.0f * WAVE_HEIGHT);
+
+        /* Limite aux bornes de la zone */
+        if (y < WAVE_Y_TOP) y = WAVE_Y_TOP;
+        if (y > WAVE_Y_BOTTOM) y = WAVE_Y_BOTTOM;
+
+        /* Trace une ligne du point precedent au point actuel */
+        if (x > 0)
+        {
+            BSP_LCD_DrawLine(WAVE_X0 + x - 1, prev_y,
+                             WAVE_X0 + x, y);
+        }
+
+        prev_y = y;
+    }
+}
+
+/* ====== TRAITEMENT COMPLET ======

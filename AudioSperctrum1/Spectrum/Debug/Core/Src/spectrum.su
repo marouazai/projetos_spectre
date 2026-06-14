@@ -1,0 +1,3 @@
+../Core/Src/spectrum.c:14:17:bar_color	24	static
+../Core/Src/spectrum.c:22:6:Spectrum_Init	16	static
+../Core/Src/spectrum.c:57:6:Spectrum_Process	72	static

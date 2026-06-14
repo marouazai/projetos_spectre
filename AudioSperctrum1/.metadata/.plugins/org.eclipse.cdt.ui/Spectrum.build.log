@@ -1,0 +1,10 @@
+14:02:50 **** Incremental Build of configuration Debug for project Spectrum ****
+make -j2 all 
+arm-none-eabi-size  Spectrum.elf 
+   text	   data	    bss	    dec	    hex	filename
+ 191244	    524	  29940	 221708	  3620c	Spectrum.elf
+Finished building: default.size.stdout
+ 
+
+14:02:51 Build Finished. 0 errors, 0 warnings. (took 1s.678ms)
+

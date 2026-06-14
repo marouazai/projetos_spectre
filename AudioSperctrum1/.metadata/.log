@@ -1,0 +1,117 @@
+!SESSION 2026-06-03 14:55:32.673 -----------------------------------------------
+eclipse.buildId=Version 1.18.0
+java.version=21.0.3
+java.vendor=Eclipse Adoptium
+BootLoader constants: OS=win32, ARCH=x86_64, WS=win32, NL=fr_FR
+Command-line arguments:  -os win32 -ws win32 -arch x86_64
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 4 4 2026-06-03 14:57:41.262
+!MESSAGE CubeMX plugin appears to be active, Log4j initialization might be too late.
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 1 1 2026-06-03 14:57:41.294
+!MESSAGE Log4j2 initialized with config file C:\Users\essaoudi\Documents\AudioSpectrum\AudioSperctrum1\.metadata\.log4j2.xml
+
+!ENTRY com.st.stm32cube.ide.mcu.ide 1 1 2026-06-03 14:57:58.886
+!MESSAGE Started RMI Server, listening on port 41337
+
+!ENTRY org.eclipse.cdt.core 1 0 2026-06-03 15:25:22.980
+!MESSAGE Indexed 'Spectrum' (81 sources, 149 headers) in 40.4 sec: 17,162 declarations; 131,237 references; 0 unresolved inclusions; 1 syntax errors; 2 unresolved names (0.0013%)
+
+!ENTRY org.eclipse.cdt.ui 4 2 2026-06-03 15:43:28.999
+!MESSAGE Problems occurred when invoking code from plug-in: "org.eclipse.cdt.ui".
+!STACK 0
+java.lang.IllegalArgumentException: offset + length > documentLength: 48387 + 25 > 47498
+	at org.eclipse.jface.text.rules.RuleBasedScanner.checkRange(RuleBasedScanner.java:125)
+	at org.eclipse.jface.text.rules.RuleBasedScanner.setRange(RuleBasedScanner.java:96)
+	at org.eclipse.jface.text.rules.BufferedRuleBasedScanner.setRange(BufferedRuleBasedScanner.java:101)
+	at org.eclipse.cdt.internal.ui.text.spelling.CSpellingEngine.check(CSpellingEngine.java:141)
+	at org.eclipse.cdt.internal.ui.text.spelling.SpellingEngine.check(SpellingEngine.java:76)
+	at org.eclipse.cdt.internal.ui.text.spelling.CSpellingService$1.run(CSpellingService.java:60)
+	at org.eclipse.core.runtime.SafeRunner.run(SafeRunner.java:47)
+	at org.eclipse.cdt.internal.ui.text.spelling.CSpellingService.check(CSpellingService.java:67)
+	at org.eclipse.ui.texteditor.spelling.SpellingReconcileStrategy.reconcile(SpellingReconcileStrategy.java:190)
+	at org.eclipse.cdt.internal.ui.text.spelling.CSpellingReconcileStrategy.reconcile(CSpellingReconcileStrategy.java:125)
+	at org.eclipse.ui.texteditor.spelling.SpellingReconcileStrategy.initialReconcile(SpellingReconcileStrategy.java:165)
+	at org.eclipse.cdt.internal.ui.text.CompositeReconcilingStrategy.initialReconcile(CompositeReconcilingStrategy.java:119)
+	at org.eclipse.cdt.internal.ui.text.CCompositeReconcilingStrategy.initialReconcile(CCompositeReconcilingStrategy.java:108)
+	at org.eclipse.jface.text.reconciler.MonoReconciler.initialProcess(MonoReconciler.java:100)
+	at org.eclipse.cdt.internal.ui.text.CReconciler.initialProcess(CReconciler.java:335)
+	at org.eclipse.jface.text.reconciler.AbstractReconciler$BackgroundThread.run(AbstractReconciler.java:177)
+
+!ENTRY org.eclipse.cdt.core 1 0 2026-06-03 15:52:39.485
+!MESSAGE Indexed 'Spectrum' (81 sources, 141 headers) in 17 sec: 16,836 declarations; 131,877 references; 14 unresolved inclusions; 1 syntax errors; 171 unresolved names (0.11%)
+
+!ENTRY org.eclipse.cdt.core 1 0 2026-06-03 15:56:21.395
+!MESSAGE Indexed 'Spectrum' (81 sources, 114 headers) in 24.1 sec: 15,977 declarations; 118,090 references; 31 unresolved inclusions; 248 syntax errors; 12,002 unresolved names (8.2%)
+
+!ENTRY com.st.stm32cube.ide.mcu.debug.launch 2 0 2026-06-03 16:39:32.190
+!MESSAGE Won't launch debug session since we failed to locate the binary.
+
+!ENTRY org.eclipse.cdt.core 1 0 2026-06-03 17:18:57.098
+!MESSAGE Indexed 'Spectrum' (76 sources, 147 headers) in 12.7 sec: 18,873 declarations; 129,844 references; 0 unresolved inclusions; 2 syntax errors; 13 unresolved names (0.0087%)
+
+!ENTRY org.eclipse.cdt.core 1 0 2026-06-03 17:40:11.501
+!MESSAGE Indexed 'Spectrum' (76 sources, 148 headers) in 11.6 sec: 18,750 declarations; 129,374 references; 0 unresolved inclusions; 1 syntax errors; 2 unresolved names (0.0014%)
+
+!ENTRY org.eclipse.cdt.core 1 0 2026-06-03 17:40:28.644
+!MESSAGE Indexed 'Spectrum' (76 sources, 148 headers) in 9.59 sec: 18,750 declarations; 129,374 references; 0 unresolved inclusions; 1 syntax errors; 2 unresolved names (0.0014%)
+
+!ENTRY org.eclipse.cdt.core 1 0 2026-06-03 17:44:21.551
+!MESSAGE Indexed 'Spectrum' (76 sources, 148 headers) in 8.65 sec: 18,750 declarations; 129,374 references; 0 unresolved inclusions; 1 syntax errors; 2 unresolved names (0.0014%)
+
+!ENTRY org.eclipse.cdt.core 1 0 2026-06-03 17:48:33.982
+!MESSAGE Indexed 'Spectrum' (76 sources, 148 headers) in 14.5 sec: 18,750 declarations; 129,374 references; 0 unresolved inclusions; 1 syntax errors; 2 unresolved names (0.0014%)
+
+!ENTRY org.eclipse.cdt.core 1 0 2026-06-03 18:23:07.300
+!MESSAGE Indexed 'Spectrum' (77 sources, 148 headers) in 11.7 sec: 18,897 declarations; 131,177 references; 0 unresolved inclusions; 1 syntax errors; 2 unresolved names (0.0013%)
+
+!ENTRY org.eclipse.cdt.core 1 0 2026-06-03 18:24:04.560
+!MESSAGE Indexed 'Spectrum' (77 sources, 148 headers) in 9.72 sec: 18,897 declarations; 131,177 references; 0 unresolved inclusions; 1 syntax errors; 2 unresolved names (0.0013%)
+
+!ENTRY org.eclipse.cdt.core 1 0 2026-06-03 18:25:34.228
+!MESSAGE Indexed 'Spectrum' (77 sources, 148 headers) in 11.5 sec: 18,897 declarations; 131,177 references; 0 unresolved inclusions; 1 syntax errors; 2 unresolved names (0.0013%)
+!SESSION 2026-06-04 08:40:20.566 -----------------------------------------------
+eclipse.buildId=Version 1.18.0
+java.version=21.0.3
+java.vendor=Eclipse Adoptium
+BootLoader constants: OS=win32, ARCH=x86_64, WS=win32, NL=fr_FR
+Command-line arguments:  -os win32 -ws win32 -arch x86_64
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 4 4 2026-06-04 08:41:48.848
+!MESSAGE CubeMX plugin appears to be active, Log4j initialization might be too late.
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 1 1 2026-06-04 08:41:48.879
+!MESSAGE Log4j2 initialized with config file C:\Users\essaoudi\Documents\AudioSpectrum\AudioSperctrum1\.metadata\.log4j2.xml
+
+!ENTRY com.st.stm32cube.ide.mcu.ide 1 1 2026-06-04 08:42:22.115
+!MESSAGE Started RMI Server, listening on port 41337
+!SESSION 2026-06-11 12:45:32.789 -----------------------------------------------
+eclipse.buildId=Version 1.18.0
+java.version=21.0.3
+java.vendor=Eclipse Adoptium
+BootLoader constants: OS=win32, ARCH=x86_64, WS=win32, NL=fr_FR
+Command-line arguments:  -os win32 -ws win32 -arch x86_64
+
+!ENTRY org.eclipse.core.resources 2 10035 2026-06-11 12:45:57.077
+!MESSAGE The workspace exited with unsaved changes in the previous session; refreshing workspace to recover changes.
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 4 4 2026-06-11 12:47:40.919
+!MESSAGE CubeMX plugin appears to be active, Log4j initialization might be too late.
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 1 1 2026-06-11 12:47:40.921
+!MESSAGE Log4j2 initialized with config file C:\Users\essaoudi\Documents\AudioSpectrum\AudioSperctrum1\.metadata\.log4j2.xml
+
+!ENTRY com.st.stm32cube.ide.mcu.ide 1 1 2026-06-11 12:48:18.490
+!MESSAGE Started RMI Server, listening on port 41337
+
+!ENTRY com.st.stm32cube.ide.mcu.debug 4 0 2026-06-11 13:37:48.915
+!MESSAGE Error - No active DSF-Session. tmpSessionId = 9 (contextManager row 121)
+
+!ENTRY com.st.stm32cube.ide.mcu.debug 4 0 2026-06-11 13:37:48.917
+!MESSAGE Existing sessions are:
+
+!ENTRY com.st.stm32cube.ide.mcu.debug 4 0 2026-06-11 13:37:48.925
+!MESSAGE Error - No active DSF-Session. tmpSessionId = 9 (contextManager row 121)
+
+!ENTRY com.st.stm32cube.ide.mcu.debug 4 0 2026-06-11 13:37:48.927
+!MESSAGE Existing sessions are:

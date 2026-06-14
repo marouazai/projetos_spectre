@@ -1,0 +1,51 @@
+#include "audio_capture.h"
+#include <string.h>
+#define AUDIO_INPUT_DEVICE      INPUT_DEVICE_DIGITAL_MICROPHONE_2
+int16_t audio_rec_buffer[AUDIO_BUFFER_SIZE];
+
+volatile uint8_t audio_rec_half_complete = 0;
+volatile uint8_t audio_rec_full_complete = 0;
+
+uint8_t AudioCapture_Init(void)
+{
+    if (BSP_AUDIO_IN_Init(AUDIO_INPUT_DEVICE,
+                          AUDIO_INPUT_VOLUME,
+                          AUDIO_SAMPLE_RATE) != AUDIO_OK)
+    {
+        return 1;
+    }
+    memset(audio_rec_buffer, 0, sizeof(audio_rec_buffer));
+    return 0;
+}
+
+uint8_t AudioCapture_Start(void)
+{
+    if (BSP_AUDIO_IN_Record((uint16_t*)audio_rec_buffer,
+                            AUDIO_BUFFER_SIZE) != AUDIO_OK)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+void BSP_AUDIO_IN_HalfTransfer_CallBack(void)
+{
+    audio_rec_half_complete = 1;
+}
+
+void BSP_AUDIO_IN_TransferComplete_CallBack(void)
+{
+    audio_rec_full_complete = 1;
+}
+
+/*
+ * CETTE PARTIE EST INDISPENSABLE
+ * Sans elle, le DMA leve une interruption mais le CPU
+ * ne sait pas quoi faire -> le programme se bloque
+ */
+extern SAI_HandleTypeDef haudio_in_sai;
+
+void DMA2_Stream7_IRQHandler(void)
+{
+    HAL_DMA_IRQHandler(haudio_in_sai.hdmarx);
+}

@@ -1,0 +1,5 @@
+../Core/Src/audio_capture.c:9:9:AudioCapture_Init	8	static
+../Core/Src/audio_capture.c:21:9:AudioCapture_Start	8	static
+../Core/Src/audio_capture.c:31:6:BSP_AUDIO_IN_HalfTransfer_CallBack	4	static
+../Core/Src/audio_capture.c:36:6:BSP_AUDIO_IN_TransferComplete_CallBack	4	static
+../Core/Src/audio_capture.c:48:6:DMA2_Stream7_IRQHandler	8	static
