@@ -1,8 +1,11 @@
 ﻿# projetos_spectre
 
 1. Objectif du programme
+
 Le programme réalise un analyseur de spectre audio temps réel sur la carte STM32F746G-DISCO.
+
 Son rôle est de :
+
 Capturer le son provenant du jack audio 3.5 mm.
 Numériser ce son à 44,1 kHz.
 Calculer sa Transformée de Fourier Rapide (FFT).
@@ -11,12 +14,14 @@ la forme d'onde du signal (oscilloscope)
 le spectre fréquentiel (barres FFT colorées).
 
 
-2. Logique générale du système
+3. Logique générale du système
 
 Le programme suit la chaîne de traitement suivante :
 
 Signal Audio >>>Codec WM8994 >>> SAI2 >>> DMA >>> Buffer Audio >>> Prétraitement >>> FFT >>> Calcul des amplitudes>>> Affichage LCD
-  Le principe est :
+
+Le principe est :
+  
 1.Le matériel récupère le son.
 2.Le DMA stocke les échantillons sans utiliser le CPU.
 3.Le processeur analyse les données reçues.
