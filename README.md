@@ -77,5 +77,10 @@ Afin d'améliorer le confort visuel, le programme applique un algorithme de liss
 La boucle principale assure la surveillance continue des indicateurs générés par le DMA. Lorsqu'une moitié du buffer est disponible, les données correspondantes sont immédiatement traitées par le module FFT puis affichées à l'écran. Grâce au double buffering, cette opération peut être réalisée en continu sans interrompre l'acquisition audio. Le système fonctionne ainsi en temps réel avec une faible charge processeur et sans perte d'échantillons.
 
 Conclusion
+
 L'architecture du programme repose sur une combinaison efficace entre acquisition audio, traitement numérique du signal et affichage graphique. L'utilisation du DMA, du double buffering et de la bibliothèque CMSIS-DSP permet de réaliser une analyse fréquentielle en temps réel tout en garantissant des performances élevées sur le microcontrôleur STM32F746G-DISCO. Le système offre ainsi une visualisation claire et instantanée des caractéristiques temporelles et fréquentielles du signal audio.
+
+
+
+Réalisées par : Maroua Zaid , Chaimaa Es-saoudi . 
 
